@@ -9,3 +9,11 @@ Puedes abrir este repositorio en VS Code, Antigravity o Sublime Text. El compila
 
 `.gitignore` excluye credenciales locales, estado del editor y salidas de las herramientas detectadas. No deja de versionar archivos que ya estaban en Git. Los manifiestos, archivos de bloqueo, recursos fuente y scripts de esquema forman parte del código.
 <!-- local-development:end -->
+
+<!-- platform-tools:start -->
+## Herramientas para otros componentes
+
+### Cisco Packet Tracer
+
+Abre los archivos `.pkt` o `.pka` con Cisco Packet Tracer. Son topologías o actividades de red; su validación se realiza dentro del simulador, probando conectividad y configuración.
+<!-- platform-tools:end -->
