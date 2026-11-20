@@ -17,3 +17,11 @@ Puedes abrir este repositorio en VS Code, Antigravity o Sublime Text. El compila
 
 Abre los archivos `.pkt` o `.pka` con Cisco Packet Tracer. Son topologías o actividades de red; su validación se realiza dentro del simulador, probando conectividad y configuración.
 <!-- platform-tools:end -->
+
+
+<!-- improvements-20261120:start -->
+## Mejoras y verificación — 2026-11-20 (Planificador VLSM multi-VLAN PYME (compañero de PYME.pkt y subneteo.xlsx))
+
+- **Cambios:** Añadido planificador interactivo (`web-planner/index.html` + `web-planner/vlsm-planner.js`) que asigna subredes VLSM sin solapamiento ordenadas por tamaño, detecta desbordamiento de bloque y genera subinterfaces Cisco IOS `encapsulation dot1Q` persistentes en `localStorage`.
+- **Validación:** Node 24 `node --test web-planner/tests/vlsm-planner.test.mjs` (2/2 pruebas aprobadas).
+<!-- improvements-20261120:end -->

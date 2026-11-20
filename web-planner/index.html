@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Proyecto TeleInfo 1 — Planificador VLSM PYME</title>
+  <style>
+    :root { --bg:#f4f7fb; --card:#fff; --text:#102033; --muted:#5a6b80; --border:#d7e0ec; --primary:#0d5ca8; --bad:#dc2626; }
+    [data-theme="dark"] { --bg:#0a111f; --card:#131e33; --text:#eef4fb; --muted:#97abc5; --border:#253755; --primary:#55a8ff; --bad:#f87171; }
+    * { box-sizing:border-box; }
+    body { margin:0; font-family:system-ui,-apple-system,sans-serif; background:var(--bg); color:var(--text); transition:background .2s,color .2s; }
+    .wrap { max-width:1020px; margin:0 auto; padding:22px 16px 60px; }
+    .top { display:flex; flex-wrap:wrap; justify-content:space-between; align-items:center; gap:10px; margin-bottom:16px; }
+    .card { background:var(--card); border:1px solid var(--border); border-radius:14px; padding:18px; margin-bottom:16px; }
+    .row { display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:10px; margin-bottom:10px; }
+    input, button { font:inherit; padding:8px 10px; border-radius:8px; border:1px solid var(--border); background:var(--bg); color:var(--text); min-width:0; }
+    button { cursor:pointer; font-weight:600; }
+    .btn-primary { background:var(--primary); color:#fff; border-color:transparent; }
+    table { width:100%; border-collapse:collapse; font-size:13.5px; }
+    th, td { padding:8px; border-bottom:1px solid var(--border); text-align:left; }
+    pre { background:#0b1322; color:#d7e8ff; padding:14px; border-radius:10px; overflow:auto; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="top">
+      <div>
+        <h1 style="margin:0;">🏢 PYME TeleInfo 1 — Planificador VLSM y VLANs</h1>
+        <div style="color:var(--muted);font-size:14px;">Compañero de <code>PYME.pkt</code> y <code>subneteo.xlsx</code> con generación de subinterfaces Cisco IOS</div>
+      </div>
+      <button type="button" id="themeBtn">🌙 Oscuro</button>
+    </div>
+
+    <div class="card">
+      <div class="row">
+        <input id="baseIp" value="192.168.100.0" aria-label="Red base" />
+        <input id="basePrefix" type="number" min="8" max="30" value="24" aria-label="Prefijo CIDR" />
+        <input id="deptName" placeholder="Departamento (ej. Finanzas)" />
+        <input id="deptVlan" type="number" min="2" max="4094" value="40" aria-label="VLAN ID" />
+        <input id="deptHosts" type="number" min="1" value="20" aria-label="Hosts requeridos" />
+      </div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;">
+        <button type="button" id="addBtn" class="btn-primary">+ Agregar departamento</button>
+        <button type="button" id="resetBtn">↺ Restaurar PYME</button>
+        <button type="button" id="copyBtn">📋 Copiar CLI</button>
+      </div>
+      <div id="err" style="color:var(--bad);margin-top:8px;"></div>
+    </div>
+
+    <div class="card">
+      <h3 style="margin-top:0;">Tabla de subneteo VLSM</h3>
+      <div style="overflow-x:auto;">
+        <table>
+          <thead><tr><th>VLAN</th><th>Departamento</th><th>Hosts (Req/Disp)</th><th>Red / Prefijo</th><th>Máscara</th><th>Gateway</th><th>Broadcast</th><th></th></tr></thead>
+          <tbody id="tbody"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="card">
+      <h3 style="margin-top:0;">Cisco IOS — Router-on-a-Stick</h3>
+      <pre id="cli"></pre>
+    </div>
+  </div>
+  <script src="./vlsm-planner.js"></script>
+  <script>
+    (function () {
+      var P = window.PymeVlsmPlanner, KEY = 'pyme_vlsm_depts_v1', TKEY = 'pyme_theme';
+      function $(id) { return document.getElementById(id); }
+      function esc(v) { return String(v == null ? '' : v).replace(/[&<>"']/g, function (c) { return ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[c]; }); }
+      var seed = [
+        { name: 'Administración', vlanId: 10, hosts: 50 },
+        { name: 'Ventas y Atención', vlanId: 20, hosts: 28 },
+        { name: 'TI y Servidores', vlanId: 30, hosts: 12 }
+      ];
+      var depts;
+      try { depts = JSON.parse(localStorage.getItem(KEY) || 'null') || seed.slice(); } catch (e) { depts = seed.slice(); }
+      function save() { try { localStorage.setItem(KEY, JSON.stringify(depts)); } catch (e) {} }
+      function setTheme(t) { document.documentElement.setAttribute('data-theme', t); try { localStorage.setItem(TKEY, t); } catch (e) {} $('themeBtn').textContent = t === 'dark' ? '☀️ Claro' : '🌙 Oscuro'; }
+      setTheme(localStorage.getItem(TKEY) === 'dark' ? 'dark' : 'light');
+      $('themeBtn').addEventListener('click', function () { setTheme(document.documentElement.getAttribute('data-theme') === 'dark' ? 'light' : 'dark'); });
+      function render() {
+        var res = P.planVlsm($('baseIp').value, $('basePrefix').value, depts);
+        $('err').textContent = res.ok ? '' : res.error;
+        if (!res.ok) { $('tbody').innerHTML = ''; $('cli').textContent = ''; return; }
+        $('tbody').innerHTML = res.subnets.map(function (s, i) {
+          return '<tr><td>VLAN ' + s.vlanId + '</td><td><strong>' + esc(s.name) + '</strong></td><td>' + s.requestedHosts + ' / ' + s.usableHosts + '</td><td>' + s.network + '/' + s.prefix + '</td><td>' + s.mask + '</td><td>' + s.gateway + '</td><td>' + s.broadcast + '</td><td><button type="button" data-del="' + i + '">✕</button></td></tr>';
+        }).join('');
+        $('cli').textContent = res.cli;
+      }
+      $('addBtn').addEventListener('click', function () {
+        var name = $('deptName').value.trim(); if (!name) return;
+        depts.push({ name: name, vlanId: Number($('deptVlan').value) || 50, hosts: Number($('deptHosts').value) || 10 });
+        $('deptName').value = ''; save(); render();
+      });
+      $('resetBtn').addEventListener('click', function () { depts = seed.slice(); save(); render(); });
+      $('copyBtn').addEventListener('click', function () { if (navigator.clipboard) navigator.clipboard.writeText($('cli').textContent); });
+      ['baseIp', 'basePrefix'].forEach(function (id) { $(id).addEventListener('input', render); });
+      $('tbody').addEventListener('click', function (e) {
+        var b = e.target.closest('[data-del]'); if (!b) return;
+        depts.splice(Number(b.getAttribute('data-del')), 1); save(); render();
+      });
+      render();
+    })();
+  </script>
+</body>
+</html>
